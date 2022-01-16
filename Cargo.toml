@@ -1,0 +1,16 @@
+[package]
+name = "libcrio"
+version = "0.1.0"
+edition = "2021"
+authors = ["Anton Whalley <anton@venshare.com>"]
+description = "A wrapper around the crictl cli to return serde_json objects"
+license = "Apache-2.0"
+documentation = "https://docs.rs/libcrio"
+homepage = "https://github.com/no9/libcrio"
+exclude = ["/.github/**"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde_json = "1.0.64"
+log = "0.4.14"
+
