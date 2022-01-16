@@ -1,6 +1,6 @@
 [package]
 name = "libcrio"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Anton Whalley <anton@venshare.com>"]
 description = "A wrapper around the crictl cli to return serde_json objects"

@@ -19,7 +19,7 @@ The recommended way to use it is to add a line into your Cargo.toml such as:
 
 ```toml
 [dependencies]
-libcrio = "0.1"
+libcrio = "0.1.1"
 ```
 
 Then `use libcrio::Cli;` in your code wherever you want
