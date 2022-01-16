@@ -182,13 +182,10 @@ impl Cli {
                     } else if let Some(arr) = line_obj["repoDigests"].as_array() {
                         debug!("Matching inspecting repoDigests \n{:?}", arr);
                         for digest in arr {
-                            debug!(
-                                "Matching repoDigests {} to {}",
-                                serde_json::to_string(&digest).unwrap_or_default(),
-                                image_ref
-                            );
-                            if serde_json::to_string(&digest).unwrap_or_default() == image_ref {
-                                return Ok(digest.clone());
+                            let digest_str = digest.as_str().unwrap_or_default();
+                            println!("Matching repoDigests {} to {}", digest_str, image_ref);
+                            if digest_str == image_ref {
+                                return Ok(line_obj.clone());
                             }
                         }
                     }
@@ -313,11 +310,6 @@ mod tests {
             config_path: None,
             image_command: ImageCommand::Img,
         });
-        // test_cases.push(Cli {
-        //     bin_path,
-        //     config_path: None,
-        //     image_command: None,
-        // });
         test_cases
     }
 
@@ -346,9 +338,27 @@ mod tests {
             image_command: ImageCommand::Img,
         }
     }
+    pub fn get_openshift_cli() -> Cli {
+        let bin_path = format!("{}/mock/openshift", env!("CARGO_MANIFEST_DIR"));
+        Cli {
+            bin_path,
+            config_path: None,
+            image_command: ImageCommand::Img,
+        }
+    }
     /*************************************************************************
      * pod Tests
      **************************************************************************/
+    #[test]
+    fn test_pod_returns_a_pod_openshift() {
+        let cli = get_openshift_cli();
+        let val = cli.pod("tests").unwrap();
+        assert_eq!(
+            val["id"].as_str().unwrap(),
+            "134b58ab2e0cfd7432a9db818b1b4ec52fdc747333f0ba2c9342860dc2ea7c50"
+        );
+    }
+
     #[test]
     fn test_pod_returns_a_pod() {
         for cli in get_clis() {
@@ -359,7 +369,6 @@ mod tests {
             );
         }
     }
-
     #[test]
     fn test_pod_returns_a_pod_only_errors_cli() {
         let cli = get_only_errors_cli();
@@ -398,7 +407,14 @@ mod tests {
             assert_eq!(val["info"]["pid"].as_i64().unwrap(), 14017)
         }
     }
-
+    #[test]
+    fn test_inspect_pod_openshift() {
+        let cli = get_openshift_cli();
+        let val = cli
+            .inspect_pod("134b58ab2e0cfd7432a9db818b1b4ec52fdc747333f0ba2c9342860dc2ea7c50")
+            .unwrap();
+        assert_eq!(val["info"]["pid"].as_i64().unwrap(), 38091)
+    }
     #[test]
     fn test_inspect_returns_a_pod_mixed_errors_cli() {
         let cli = get_mixed_errors_cli();
@@ -443,6 +459,17 @@ mod tests {
         }
     }
     #[test]
+    fn test_pod_containers_openshift() {
+        let cli = get_openshift_cli();
+        let val = cli
+            .pod_containers("134b58ab2e0cfd7432a9db818b1b4ec52fdc747333f0ba2c9342860dc2ea7c50")
+            .unwrap();
+        assert_eq!(
+            val["containers"][0]["id"].as_str().unwrap(),
+            "0e04af54d9273f5bb37eddbe8ace750275d7939612dd4864c792168cce2cff82"
+        )
+    }
+    #[test]
     fn test_pod_containers_only_errors_cli() {
         let cli = get_only_errors_cli();
         let val =
@@ -482,6 +509,14 @@ mod tests {
                 .unwrap();
             assert_eq!(val["size"].as_str().unwrap(), "338054458")
         }
+    }
+    #[test]
+    fn test_image_openshift() {
+        let cli = get_openshift_cli();
+        let val = cli
+            .image("quay.io/icdh/segfaulter@sha256:0630afbcfebb45059794b9a9f160f57f50062d28351c49bb568a3f7e206855bd")
+            .unwrap();
+        assert_eq!(val["size"].as_str().unwrap(), "10229047")
     }
     #[test]
     fn test_images_only_errors_cli() {
