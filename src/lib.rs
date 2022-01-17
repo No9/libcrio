@@ -222,6 +222,32 @@ impl Cli {
         };
         run_command_text(log_output_args, &self.bin_path)
     }
+
+    /// # Arguments
+    ///
+    /// * `path` - The additional path to append to bin_path,
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use libcrio::Cli;
+    /// let bin_path = format!("{}/mock/iks", env!("CARGO_MANIFEST_DIR"));
+    /// let mut cli = Cli {
+    ///     bin_path,
+    ///     ..Default::default()
+    /// };
+    /// cli.append_bin_path("/my/new/location".to_string());
+    /// ```
+    pub fn append_bin_path(&mut self, path: String) {
+        let internal;
+
+        if !path.starts_with(':') {
+            internal = format!(":{}", path);
+        } else {
+            internal = path;
+        }
+        self.bin_path.push_str(internal.as_str());
+    }
 }
 
 fn slice_to_value(slice: &[u8], args: Vec<&str>) -> Result<Value, String> {
@@ -346,6 +372,27 @@ mod tests {
             image_command: ImageCommand::Img,
         }
     }
+
+    #[test]
+    fn test_append_bin_path() {
+        let mut cli = Cli::default();
+        let path = "/my/path".to_string();
+        cli.append_bin_path(path);
+        assert_eq!(
+            cli.bin_path,
+            "/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/home/kubernetes/bin:/my/path"
+                .to_string(),
+        );
+
+        let path2 = ":/my/path2".to_string();
+        cli.append_bin_path(path2);
+        assert_eq!(
+            cli.bin_path,
+            "/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/home/kubernetes/bin:/my/path:/my/path2"
+                .to_string(),
+        );
+    }
+
     /*************************************************************************
      * pod Tests
      **************************************************************************/
