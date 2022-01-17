@@ -239,13 +239,11 @@ impl Cli {
     /// cli.append_bin_path("/my/new/location".to_string());
     /// ```
     pub fn append_bin_path(&mut self, path: String) {
-        let internal;
-
-        if !path.starts_with(':') {
-            internal = format!(":{}", path);
+        let internal = if !path.starts_with(':') {
+            format!(":{}", path)
         } else {
-            internal = path;
-        }
+            path
+        };
         self.bin_path.push_str(internal.as_str());
     }
 }
