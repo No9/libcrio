@@ -176,15 +176,17 @@ impl Cli {
                     let line_obj: Value = serde_json::to_value(line).unwrap();
                     let line_obj_id = line_obj["id"].as_str().unwrap_or_default();
 
-                    debug!("Matching {} to {}", line_obj_id, image_ref);
+                    debug!("Matching {} using {}", line_obj_id, image_ref);
                     if line_obj_id == image_ref {
+                        debug!("MATCHED {} using {}", line_obj_id, image_ref);
                         return Ok(line_obj.clone());
                     } else if let Some(arr) = line_obj["repoDigests"].as_array() {
                         debug!("Matching inspecting repoDigests \n{:?}", arr);
                         for digest in arr {
                             let digest_str = digest.as_str().unwrap_or_default();
-                            println!("Matching repoDigests {} to {}", digest_str, image_ref);
+                            debug!("Matching repoDigests {} to {}", digest_str, image_ref);
                             if digest_str == image_ref {
+                                debug!("MATCHED {} to {}", line_obj_id, image_ref);
                                 return Ok(line_obj.clone());
                             }
                         }
@@ -261,6 +263,7 @@ fn slice_to_value(slice: &[u8], args: Vec<&str>) -> Result<Value, String> {
 }
 
 fn run_command_text(args: Vec<&str>, bin_path: &str) -> Result<String, String> {
+    debug!("running {:?} {:?}", args, bin_path);
     let output = match Command::new("crictl")
         .env("PATH", bin_path)
         .args(&args)
