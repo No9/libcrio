@@ -203,7 +203,7 @@ impl Cli {
         }
     }
 
-    /// Returns a JSON value containing the images related to a container
+    /// Returns a text value containing the logs related to a container
     ///
     /// # Arguments
     ///
@@ -218,12 +218,42 @@ impl Cli {
     ///     bin_path,
     ///     ..Default::default()
     /// };
+    /// #[allow(deprecated)]
     /// let val = cli.logs("sha256:3b8adc6c30f4e7e4afb57daef9d1c8af783a4a647a4670780e9df085c0525efa").unwrap();
     /// ```
+    #[deprecated]
     pub fn logs(&self, container_id: &str) -> Result<String, String> {
         let log_output_args = match &self.config_path {
             Some(s) => vec!["-c", s.as_str(), "logs", container_id],
             None => vec!["logs", container_id],
+        };
+        run_command_text(log_output_args, &self.bin_path)
+    }
+
+    /// Returns a text value containing the logs related to a container
+    ///
+    /// # Arguments
+    ///
+    /// * `container_id` - The container_id related to one of the containers obtained from `pod_containers`
+    ///
+    /// * `line_count` - The number of lines to take from the end of the log.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use libcrio::Cli;
+    /// let bin_path = format!("{}/mock/iks", env!("CARGO_MANIFEST_DIR"));
+    /// let cli = Cli {
+    ///     bin_path,
+    ///     ..Default::default()
+    /// };
+    /// let val = cli.tail_logs("sha256:3b8adc6c30f4e7e4afb57daef9d1c8af783a4a647a4670780e9df085c0525efa", 500).unwrap();
+    /// ```
+    pub fn tail_logs(&self, container_id: &str, line_count: u32) -> Result<String, String> {
+        let tailoption = format!("--tail={}", line_count);
+        let log_output_args = match &self.config_path {
+            Some(s) => vec!["-c", s.as_str(), "logs", tailoption.as_str(), container_id],
+            None => vec!["logs", tailoption.as_str(), container_id],
         };
         run_command_text(log_output_args, &self.bin_path)
     }
@@ -345,6 +375,15 @@ mod tests {
 
     pub fn get_only_errors_cli() -> Cli {
         let bin_path = format!("{}/mock/only_errors", env!("CARGO_MANIFEST_DIR"));
+        Cli {
+            bin_path,
+            config_path: None,
+            image_command: ImageCommand::Img,
+        }
+    }
+
+    pub fn get_long_logs_cli() -> Cli {
+        let bin_path = format!("{}/mock/long_logs:/usr/bin", env!("CARGO_MANIFEST_DIR"));
         Cli {
             bin_path,
             config_path: None,
@@ -602,6 +641,7 @@ mod tests {
     /*************************************************************************
      * log tests
      **************************************************************************/
+    #[allow(deprecated)]
     #[test]
     fn test_logs() {
         for cli in get_clis() {
@@ -611,6 +651,7 @@ mod tests {
             assert_eq!(val, "A LOG\n".to_string())
         }
     }
+    #[allow(deprecated)]
     #[test]
     fn test_logs_only_errors_cli() {
         let cli = get_only_errors_cli();
@@ -618,6 +659,7 @@ mod tests {
         let expected = Err(String::from("failed to execute crictl [\"logs\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"] "));
         assert_eq!(expected, val);
     }
+    #[allow(deprecated)]
     #[test]
     fn test_logs_mixed_errors_cli() {
         let cli = get_mixed_errors_cli();
@@ -626,5 +668,18 @@ mod tests {
              "failed to execute crictl [\"logs\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"] An error message\n",
          ));
         assert_eq!(expected, val);
+    }
+    #[test]
+    fn test_tail_logs() {
+        let cli = get_long_logs_cli();
+        let val = cli
+            .tail_logs(
+                "51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6",
+                500,
+            )
+            .unwrap();
+        assert_eq!(val.lines().count(), 500);
+        assert!(val.ends_with("logging 500\n"));
+        assert!(!val.contains("logging 501"));
     }
 }

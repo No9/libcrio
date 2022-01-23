@@ -1,0 +1,11 @@
+#!/bin/bash
+
+export cmd=""$1
+line_count=$(echo $2 | cut -d'=' -f 2)
+if [ "$cmd" = "logs" ]
+then
+  for (( i=1; i<=$line_count; i++))
+  do
+    echo "logging ${i}"
+  done
+fi
