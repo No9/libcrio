@@ -2,9 +2,10 @@ use log::debug;
 use serde::Serialize;
 use serde_json::Value;
 use std::process::Command;
+use std::str::FromStr;
 
 /// A CLI wrapper object
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq)]
 pub struct Cli {
     /// The bin_path to find the crio_cli required as the host process may not have this preconfigured.
     /// Usually set to "/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/home/kubernetes/bin"
@@ -17,15 +18,27 @@ pub struct Cli {
 }
 
 /// A switch to indicate which image command to run
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq)]
 pub enum ImageCommand {
     Img,
-    Image,
+    Images,
 }
 
 impl fmt::Display for ImageCommand {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(LowercaseFormatter(formatter), "{:?}", self)
+    }
+}
+
+impl FromStr for ImageCommand {
+    type Err = ();
+
+    fn from_str(input: &str) -> Result<ImageCommand, Self::Err> {
+        match input.to_lowercase().as_str() {
+            "img" => Ok(ImageCommand::Img),
+            "images" => Ok(ImageCommand::Images),
+            _ => Err(()),
+        }
     }
 }
 
@@ -361,6 +374,7 @@ fn run_command(args: Vec<&str>, bin_path: &str) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use crate::{Cli, ImageCommand};
+    use std::str::FromStr;
 
     pub fn get_clis() -> Vec<Cli> {
         let mut test_cases: Vec<Cli> = vec![];
@@ -681,5 +695,17 @@ mod tests {
         assert_eq!(val.lines().count(), 500);
         assert!(val.ends_with("logging 500\n"));
         assert!(!val.contains("logging 501"));
+    }
+
+    #[test]
+    fn test_image_cmd_from_str() {
+        assert_eq!(
+            ImageCommand::Images,
+            ImageCommand::from_str("IMAGES").unwrap()
+        );
+        assert_eq!(ImageCommand::Img, ImageCommand::from_str("imG").unwrap());
+
+        let actual_error_kind = ImageCommand::from_str("ADSF").unwrap_err();
+        assert_eq!((), actual_error_kind);
     }
 }
