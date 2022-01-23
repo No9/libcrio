@@ -1,7 +1,10 @@
 use log::debug;
+use serde::Serialize;
 use serde_json::Value;
 use std::process::Command;
+
 /// A CLI wrapper object
+#[derive(Debug, Serialize)]
 pub struct Cli {
     /// The bin_path to find the crio_cli required as the host process may not have this preconfigured.
     /// Usually set to "/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/home/kubernetes/bin"
@@ -14,7 +17,7 @@ pub struct Cli {
 }
 
 /// A switch to indicate which image command to run
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum ImageCommand {
     Img,
     Image,
