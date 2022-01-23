@@ -5,7 +5,7 @@ use std::process::Command;
 use std::str::FromStr;
 
 /// A CLI wrapper object
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Clone)]
 pub struct Cli {
     /// The bin_path to find the crio_cli required as the host process may not have this preconfigured.
     /// Usually set to "/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/home/kubernetes/bin"
@@ -18,7 +18,7 @@ pub struct Cli {
 }
 
 /// A switch to indicate which image command to run
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Clone)]
 pub enum ImageCommand {
     Img,
     Images,
@@ -707,5 +707,8 @@ mod tests {
 
         let actual_error_kind = ImageCommand::from_str("ADSF").unwrap_err();
         assert_eq!((), actual_error_kind);
+
+        let cl = ImageCommand::Img;
+        assert_eq!(cl.clone(), ImageCommand::Img);
     }
 }
