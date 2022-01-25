@@ -363,7 +363,7 @@ fn run_command_text(args: Vec<&str>, bin_path: &str) -> Result<String, String> {
                 args, e
             ));
         }
-        Ok(_) => return Ok(ok_str),
+        Ok(_) => Ok(ok_str),
     }
 }
 
