@@ -368,34 +368,9 @@ fn run_command_text(args: Vec<&str>, bin_path: &str) -> Result<String, String> {
 }
 
 fn run_command(args: Vec<&str>, bin_path: &str) -> Result<Value, String> {
-    let output = match Command::new("crictl")
-        .env("PATH", bin_path)
-        .args(&args)
-        .output()
-    {
-        Ok(v) => v,
-        Err(e) => {
-            return Err(format!("failed to execute crictl {:?} {}", args, e));
-        }
-    };
-
-    let err = output.stderr.as_slice();
-
-    if !err.is_empty() {
-        return Err(format!(
-            "failed to execute crictl {:?} {}",
-            args,
-            String::from_utf8_lossy(err)
-        ));
-    }
-    if !output.status.success() {
-        return Err(format!(
-            "failed to execute crictl {:?} {}",
-            args,
-            String::from_utf8_lossy(err)
-        ));
-    }
-    slice_to_value(output.stdout.as_slice(), args)
+    let l_args = args.clone();
+    let str_ok = run_command_text(args, bin_path)?;
+    slice_to_value(str_ok.as_bytes(), l_args)
 }
 
 #[cfg(test)]
@@ -505,7 +480,7 @@ mod tests {
         let cli = get_only_errors_cli();
         let val = cli.pod("tests");
         let expected = Err(String::from(
-            "failed to execute crictl [\"pods\", \"--name\", \"tests\", \"-o\", \"json\"] ",
+            "crictl status is unsuccessful [\"pods\", \"--name\", \"tests\", \"-o\", \"json\"], exit status: 1",
         ));
         assert_eq!(expected, val);
     }
@@ -514,7 +489,7 @@ mod tests {
     fn test_pod_returns_a_pod_mixed_errors_cli() {
         let cli = get_mixed_errors_cli();
         let val = cli.pod("tests");
-        let expected = Err(String::from("failed to execute crictl [\"pods\", \"--name\", \"tests\", \"-o\", \"json\"] An error message\n"));
+        let expected = Err(String::from("stderr not empty - failed to execute crictl [\"pods\", \"--name\", \"tests\", \"-o\", \"json\"] An error message\n"));
         assert_eq!(expected, val);
     }
 
@@ -551,7 +526,7 @@ mod tests {
         let cli = get_mixed_errors_cli();
         let val = cli.inspect_pod("tests");
         let expected = Err(String::from(
-            "failed to execute crictl [\"inspectp\", \"tests\"] An error message\n",
+            "stderr not empty - failed to execute crictl [\"inspectp\", \"tests\"] An error message\n",
         ));
         assert_eq!(expected, val);
     }
@@ -561,7 +536,7 @@ mod tests {
         let cli = get_only_errors_cli();
         let val =
             cli.inspect_pod("51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6");
-        let expected = Err(String::from("failed to execute crictl [\"inspectp\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"] "));
+        let expected = Err(String::from("crictl status is unsuccessful [\"inspectp\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"], exit status: 1"));
         assert_eq!(expected, val);
     }
 
@@ -605,7 +580,7 @@ mod tests {
         let cli = get_only_errors_cli();
         let val =
             cli.pod_containers("51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6");
-        let expected = Err(String::from("failed to execute crictl [\"ps\", \"-o\", \"json\", \"-p\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"] "));
+        let expected = Err(String::from("crictl status is unsuccessful [\"ps\", \"-o\", \"json\", \"-p\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"], exit status: 1"));
         assert_eq!(expected, val);
     }
 
@@ -624,7 +599,7 @@ mod tests {
         let val =
             cli.pod_containers("51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6");
         let expected = Err(String::from(
-            "failed to execute crictl [\"ps\", \"-o\", \"json\", \"-p\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"] An error message\n",
+            "stderr not empty - failed to execute crictl [\"ps\", \"-o\", \"json\", \"-p\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"] An error message\n",
         ));
         assert_eq!(expected, val);
     }
@@ -655,7 +630,7 @@ mod tests {
         let val =
             cli.image("sha256:3b8adc6c30f4e7e4afb57daef9d1c8af783a4a647a4670780e9df085c0525efa");
         let expected = Err(String::from(
-            "failed to execute crictl [\"img\", \"-o\", \"json\"] ",
+            "crictl status is unsuccessful [\"img\", \"-o\", \"json\"], exit status: 1",
         ));
         assert_eq!(expected, val);
     }
@@ -675,7 +650,7 @@ mod tests {
         let val =
             cli.image("sha256:3b8adc6c30f4e7e4afb57daef9d1c8af783a4a647a4670780e9df085c0525efa");
         let expected = Err(String::from(
-            "failed to execute crictl [\"img\", \"-o\", \"json\"] An error message\n",
+            "stderr not empty - failed to execute crictl [\"img\", \"-o\", \"json\"] An error message\n",
         ));
         assert_eq!(expected, val);
     }
