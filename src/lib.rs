@@ -2,6 +2,7 @@ use log::debug;
 use serde::Serialize;
 use serde_json::Value;
 use std::process::Command;
+use std::process::Stdio;
 use std::str::FromStr;
 
 /// A CLI wrapper object
@@ -310,14 +311,23 @@ fn slice_to_value(slice: &[u8], args: Vec<&str>) -> Result<Value, String> {
 
 fn run_command_text(args: Vec<&str>, bin_path: &str) -> Result<String, String> {
     debug!("running {:?} {:?}", args, bin_path);
-    let output = match Command::new("crictl")
+    let child = match Command::new("crictl")
         .env("PATH", bin_path)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .args(&args)
-        .output()
+        .spawn()
     {
         Ok(v) => v,
         Err(e) => {
             return Err(format!("failed to execute crictl {:?} {}", args, e));
+        }
+    };
+
+    let output = match child.wait_with_output() {
+        Ok(v) => v,
+        Err(e) => {
+            return Err(format!("failed to wait on child crictl {:?} {}", args, e));
         }
     };
 
