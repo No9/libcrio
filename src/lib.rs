@@ -1,6 +1,7 @@
 use log::debug;
 use serde::Serialize;
 use serde_json::Value;
+use std::io::prelude::*;
 use std::process::Command;
 use std::process::Stdio;
 use std::str::FromStr;
@@ -311,7 +312,7 @@ fn slice_to_value(slice: &[u8], args: Vec<&str>) -> Result<Value, String> {
 
 fn run_command_text(args: Vec<&str>, bin_path: &str) -> Result<String, String> {
     debug!("running {:?} {:?}", args, bin_path);
-    let child = match Command::new("crictl")
+    let mut cmd = match Command::new("crictl")
         .env("PATH", bin_path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -323,31 +324,47 @@ fn run_command_text(args: Vec<&str>, bin_path: &str) -> Result<String, String> {
             return Err(format!("failed to execute crictl {:?} {}", args, e));
         }
     };
-
-    let output = match child.wait_with_output() {
+    let waiter = match cmd.wait() {
         Ok(v) => v,
         Err(e) => {
-            return Err(format!("failed to wait on child crictl {:?} {}", args, e));
+            return Err(format!("failed to execute crictl {:?} {}", args, e));
         }
     };
 
-    let err = output.stderr.as_slice();
+    let mut err_str = String::new();
+    match cmd.stderr.unwrap().read_to_string(&mut err_str) {
+        Err(e) => {
+            return Err(format!(
+                "stderr read error - failed to execute crictl {:?} {}",
+                args, e
+            ));
+        }
+        Ok(_) => {
+            if !err_str.is_empty() {
+                return Err(format!(
+                    "stderr not empty - failed to execute crictl {:?} {}",
+                    args, err_str
+                ));
+            }
+        }
+    }
 
-    if !err.is_empty() {
+    if !waiter.success() {
         return Err(format!(
-            "failed to execute crictl {:?} {}",
-            args,
-            String::from_utf8_lossy(err)
+            "crictl status is unsuccessful {:?}, {}",
+            args, waiter
         ));
     }
-    if !output.status.success() {
-        return Err(format!(
-            "failed to execute crictl {:?} {}",
-            args,
-            String::from_utf8_lossy(err)
-        ));
+    let mut ok_str = String::new();
+    match cmd.stdout.unwrap().read_to_string(&mut ok_str) {
+        Err(e) => {
+            return Err(format!(
+                "stdout error - failed to execute crictl {:?} {}",
+                args, e
+            ));
+        }
+        Ok(_) => return Ok(ok_str),
     }
-    Ok(String::from_utf8_lossy(output.stdout.as_slice()).to_string())
 }
 
 fn run_command(args: Vec<&str>, bin_path: &str) -> Result<Value, String> {
@@ -680,7 +697,7 @@ mod tests {
     fn test_logs_only_errors_cli() {
         let cli = get_only_errors_cli();
         let val = cli.logs("51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6");
-        let expected = Err(String::from("failed to execute crictl [\"logs\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"] "));
+        let expected = Err(String::from("crictl status is unsuccessful [\"logs\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"], exit status: 1"));
         assert_eq!(expected, val);
     }
     #[allow(deprecated)]
@@ -689,7 +706,7 @@ mod tests {
         let cli = get_mixed_errors_cli();
         let val = cli.logs("51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6");
         let expected = Err(String::from(
-             "failed to execute crictl [\"logs\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"] An error message\n",
+             "stderr not empty - failed to execute crictl [\"logs\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"] An error message\n",
          ));
         assert_eq!(expected, val);
     }
