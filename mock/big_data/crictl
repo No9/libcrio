@@ -1,0 +1,11 @@
+#!/bin/bash
+
+retval=""
+for i in {1..65536}
+do
+    retval+="a"
+done
+
+retval+="
+"
+echo $retval

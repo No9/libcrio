@@ -312,7 +312,7 @@ fn slice_to_value(slice: &[u8], args: Vec<&str>) -> Result<Value, String> {
 
 fn run_command_text(args: Vec<&str>, bin_path: &str) -> Result<String, String> {
     debug!("running {:?} {:?}", args, bin_path);
-    let mut cmd = match Command::new("crictl")
+    let cmd = match Command::new("crictl")
         .env("PATH", bin_path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -324,7 +324,7 @@ fn run_command_text(args: Vec<&str>, bin_path: &str) -> Result<String, String> {
             return Err(format!("failed to execute crictl {:?} {}", args, e));
         }
     };
-    let waiter = match cmd.wait() {
+    let waiter = match cmd.wait_with_output() {
         Ok(v) => v,
         Err(e) => {
             return Err(format!("failed to execute crictl {:?} {}", args, e));
@@ -332,7 +332,7 @@ fn run_command_text(args: Vec<&str>, bin_path: &str) -> Result<String, String> {
     };
 
     let mut err_str = String::new();
-    match cmd.stderr.unwrap().read_to_string(&mut err_str) {
+    match waiter.stderr.as_slice().read_to_string(&mut err_str) {
         Err(e) => {
             return Err(format!(
                 "stderr read error - failed to execute crictl {:?} {}",
@@ -349,14 +349,14 @@ fn run_command_text(args: Vec<&str>, bin_path: &str) -> Result<String, String> {
         }
     }
 
-    if !waiter.success() {
-        return Err(format!(
-            "crictl status is unsuccessful {:?}, {}",
-            args, waiter
-        ));
-    }
+    // if !waiter.success() {
+    //     return Err(format!(
+    //         "crictl status is unsuccessful {:?}, {}",
+    //         args, waiter
+    //     ));
+    // }
     let mut ok_str = String::new();
-    match cmd.stdout.unwrap().read_to_string(&mut ok_str) {
+    match waiter.stdout.as_slice().read_to_string(&mut ok_str) {
         Err(e) => {
             return Err(format!(
                 "stdout error - failed to execute crictl {:?} {}",
@@ -387,6 +387,15 @@ mod tests {
             image_command: ImageCommand::Img,
         });
         test_cases
+    }
+
+    pub fn get_big_data_cli() -> Cli {
+        let bin_path = format!("{}/mock/big_data", env!("CARGO_MANIFEST_DIR"));
+        Cli {
+            bin_path,
+            config_path: None,
+            image_command: ImageCommand::Img,
+        }
     }
 
     pub fn get_only_errors_cli() -> Cli {
@@ -480,7 +489,7 @@ mod tests {
         let cli = get_only_errors_cli();
         let val = cli.pod("tests");
         let expected = Err(String::from(
-            "crictl status is unsuccessful [\"pods\", \"--name\", \"tests\", \"-o\", \"json\"], exit status: 1",
+            "failed to create output from slice for [\"pods\", \"--name\", \"tests\", \"-o\", \"json\"] EOF while parsing a value at line 2 column 0",
         ));
         assert_eq!(expected, val);
     }
@@ -501,6 +510,17 @@ mod tests {
         assert_eq!(expected, val);
     }
 
+    #[test]
+    fn test_get_big_data() {
+        let cli = get_big_data_cli();
+        let val = cli.tail_logs("", 0).unwrap();
+        let mut expected = String::from("");
+        for _f in 0..65536 {
+            expected.push('a');
+        }
+        expected.push('\n');
+        assert_eq!(expected, val);
+    }
     /*************************************************************************
      * inspect tests
      **************************************************************************/
@@ -536,7 +556,7 @@ mod tests {
         let cli = get_only_errors_cli();
         let val =
             cli.inspect_pod("51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6");
-        let expected = Err(String::from("crictl status is unsuccessful [\"inspectp\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"], exit status: 1"));
+        let expected = Err(String::from("failed to create output from slice for [\"inspectp\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"] EOF while parsing a value at line 2 column 0"));
         assert_eq!(expected, val);
     }
 
@@ -580,7 +600,7 @@ mod tests {
         let cli = get_only_errors_cli();
         let val =
             cli.pod_containers("51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6");
-        let expected = Err(String::from("crictl status is unsuccessful [\"ps\", \"-o\", \"json\", \"-p\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"], exit status: 1"));
+        let expected = Err(String::from("failed to create output from slice for [\"ps\", \"-o\", \"json\", \"-p\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"] EOF while parsing a value at line 2 column 0"));
         assert_eq!(expected, val);
     }
 
@@ -630,7 +650,7 @@ mod tests {
         let val =
             cli.image("sha256:3b8adc6c30f4e7e4afb57daef9d1c8af783a4a647a4670780e9df085c0525efa");
         let expected = Err(String::from(
-            "crictl status is unsuccessful [\"img\", \"-o\", \"json\"], exit status: 1",
+            "failed to create output from slice for [\"img\", \"-o\", \"json\"] EOF while parsing a value at line 2 column 0",
         ));
         assert_eq!(expected, val);
     }
@@ -666,14 +686,6 @@ mod tests {
                 .unwrap();
             assert_eq!(val, "A LOG\n".to_string())
         }
-    }
-    #[allow(deprecated)]
-    #[test]
-    fn test_logs_only_errors_cli() {
-        let cli = get_only_errors_cli();
-        let val = cli.logs("51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6");
-        let expected = Err(String::from("crictl status is unsuccessful [\"logs\", \"51cd8bdaa13a65518e790d307359d33f9288fc82664879c609029b1a83862db6\"], exit status: 1"));
-        assert_eq!(expected, val);
     }
     #[allow(deprecated)]
     #[test]
